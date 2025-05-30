@@ -1,0 +1,566 @@
+:root {
+  /* Enhanced Retro Color Palette */
+  --retro-black: #0f111b;
+  --retro-dark-blue: #1e2266;
+  --retro-blue: #3f5dc9;
+  --retro-light-blue: #7ab2ff;
+  --retro-green: #36d975;
+  --retro-lime: #94e850;
+  --retro-yellow: #ffdb38;
+  --retro-orange: #ff9f36;
+  --retro-red: #ff615b;
+  --retro-pink: #ff77b3;
+  --retro-purple: #8a4ebf;
+  --retro-teal: #21a69a;
+  --retro-cyan: #54e8ff;
+
+  /* TV Screen Colors */
+  --tv-dark: #090a12;
+  --tv-glow: rgba(140, 235, 245, 0.12);
+  --tv-shadow: rgba(0, 0, 0, 0.85);
+
+  /* UI Elements */
+  --pixel-border-size: 4px;
+  --pixel-border-color: var(--retro-black);
+  --pixel-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+
+  /* Fonts */
+  --pixel-font: "Press Start 2P", monospace, "Courier New", Courier;
+  --terminal-font: "VT323", "Courier New", monospace, Courier;
+
+  /* Theme Gradients */
+  --header-gradient-dark: linear-gradient(
+    to right,
+    var(--retro-dark-blue),
+    #362f7a
+  );
+  --header-gradient-light: linear-gradient(to right, #30559c, #3f75c9);
+
+  /* Improved Text Colors */
+  --text-glow: 0 0 8px rgba(135, 252, 163, 0.4);
+  --text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
+}
+
+/* Default Theme - Base Dark */
+.dark {
+  --background: var(--retro-dark-blue);
+  --text: #e5f2ff;
+  --text-secondary: #a8c5e3;
+  --border: #3a4572;
+  --card-bg: rgba(31, 41, 75, 0.7);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  --tv-border: #121730;
+  --tv-screen: #070a1c;
+  --terminal-text: #7aff9b;
+  --terminal-text-highlight: #a5ffb9;
+  --header-gradient: var(--header-gradient-dark);
+}
+
+/* Default Theme - Base Light */
+.light {
+  --background: #1a2e59; /* Change to a darker blue for light mode */
+  --text: #e5f2ff;
+  --text-secondary: #a8c5e3;
+  --border: #405685;
+  --card-bg: rgba(42, 63, 105, 0.7);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --tv-border: #1a2850;
+  --tv-screen: #0a1530;
+  --terminal-text: #7ab2ff;
+  --terminal-text-highlight: #a5d0ff;
+  --header-gradient: var(--header-gradient-light);
+}
+
+/* Cyberpunk Theme - Dark Mode */
+.dark.theme-cyberpunk {
+  --background: #0f0f2d;
+  --text: #ff71ce;
+  --text-secondary: #b967ff;
+  --border: #3d2970;
+  --card-bg: rgba(19, 14, 46, 0.8);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+  --tv-border: #32185a;
+  --tv-screen: #070722;
+  --terminal-text: #01ffc3;
+  --terminal-text-highlight: #01ffea;
+  --header-gradient: linear-gradient(to right, #1a043a, #4b0082);
+}
+
+/* Cyberpunk Theme - Light Mode */
+.light.theme-cyberpunk {
+  --background: #1f045e;
+  --text: #fee9fc;
+  --text-secondary: #ffd2f8;
+  --border: #5927b5;
+  --card-bg: rgba(40, 13, 97, 0.7);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --tv-border: #4b0082;
+  --tv-screen: #160338;
+  --terminal-text: #00ffc8;
+  --terminal-text-highlight: #21ffdb;
+  --header-gradient: linear-gradient(to right, #4b0082, #9370db);
+}
+
+/* Retro Console Theme - Dark Mode */
+.dark.theme-retro-console {
+  --background: #111111;
+  --text: #fbfbfb;
+  --text-secondary: #dddddd;
+  --border: #444444;
+  --card-bg: rgba(30, 30, 30, 0.8);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+  --tv-border: #222222;
+  --tv-screen: #0c0c0c;
+  --terminal-text: #00ff00;
+  --terminal-text-highlight: #aaff00;
+  --header-gradient: linear-gradient(to right, #222222, #3a3a3a);
+}
+
+/* Retro Console Theme - Light Mode */
+.light.theme-retro-console {
+  --background: #242424;
+  --text: #e0e0e0;
+  --text-secondary: #bbbbbb;
+  --border: #555555;
+  --card-bg: rgba(45, 45, 45, 0.8);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  --tv-border: #333333;
+  --tv-screen: #151515;
+  --terminal-text: #33ff33;
+  --terminal-text-highlight: #ccff66;
+  --header-gradient: linear-gradient(to right, #333333, #555555);
+}
+
+/* Vaporwave Theme - Dark Mode */
+.dark.theme-vaporwave {
+  --background: #20063b;
+  --text: #fdcfdf;
+  --text-secondary: #f9a8d4;
+  --border: #6247aa;
+  --card-bg: rgba(55, 25, 101, 0.7);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  --tv-border: #6247aa;
+  --tv-screen: #170330;
+  --terminal-text: #00f9ff;
+  --terminal-text-highlight: #c5fcfc;
+  --header-gradient: linear-gradient(to right, #6247aa, #a16ae8);
+}
+
+/* Vaporwave Theme - Light Mode */
+.light.theme-vaporwave {
+  --background: #ff6ad5;
+  --text: #2b0069;
+  --text-secondary: #491d88;
+  --border: #c774e8;
+  --card-bg: rgba(255, 154, 226, 0.7);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --tv-border: #ad8ee7;
+  --tv-screen: #d871e9;
+  --terminal-text: #0071bc;
+  --terminal-text-highlight: #005490;
+  --header-gradient: linear-gradient(to right, #ff6ad5, #c774e8);
+}
+
+/* Terminal Theme - Dark Mode */
+.dark.theme-terminal {
+  --background: #002b36;
+  --text: #93a1a1;
+  --text-secondary: #657b83;
+  --border: #073642;
+  --card-bg: rgba(0, 30, 38, 0.8);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  --tv-border: #094352;
+  --tv-screen: #00171c;
+  --terminal-text: #859900;
+  --terminal-text-highlight: #b5bd00;
+  --header-gradient: linear-gradient(to right, #002b36, #073642);
+}
+
+/* Terminal Theme - Light Mode */
+.light.theme-terminal {
+  --background: #fdf6e3;
+  --text: #586e75;
+  --text-secondary: #657b83;
+  --border: #eee8d5;
+  --card-bg: rgba(238, 232, 213, 0.7);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  --tv-border: #d7cdb5;
+  --tv-screen: #eee8d5;
+  --terminal-text: #2aa198;
+  --terminal-text-highlight: #268bd2;
+  --header-gradient: linear-gradient(to right, #eee8d5, #d7cdb5);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
+}
+
+body {
+  font-family: var(--pixel-font);
+  color: var(--text);
+  background-color: var(--background);
+  overscroll-behavior: none;
+  image-rendering: pixelated;
+  line-height: 1.5;
+}
+
+/* Hide all scrollbars */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+::-webkit-scrollbar-track {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  display: none;
+}
+
+/* Additional scrollbar hiding for Firefox */
+* {
+  scrollbar-width: none;
+}
+
+/* Additional scrollbar hiding for IE/Edge */
+* {
+  -ms-overflow-style: none;
+}
+
+/* Improved CRT scan line effect */
+.scanlines {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(0, 0, 0, 0.1) 50%
+  );
+  background-size: 100% 4px;
+  z-index: 10;
+  opacity: 0.3;
+  animation: scanlines 0.5s steps(30) infinite;
+}
+
+@keyframes scanlines {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 4px;
+  }
+}
+
+/* Enhanced CRT flicker effect */
+.crt-flicker {
+  animation: crt-flicker 1.5s infinite;
+}
+
+@keyframes crt-flicker {
+  0% {
+    opacity: 0.92;
+  }
+  3% {
+    opacity: 0.95;
+  }
+  5% {
+    opacity: 0.85;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  15% {
+    opacity: 0.88;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  45% {
+    opacity: 0.87;
+  }
+  50% {
+    opacity: 0.9;
+  }
+  55% {
+    opacity: 0.86;
+  }
+  60% {
+    opacity: 0.94;
+  }
+  75% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.84;
+  }
+  90% {
+    opacity: 0.92;
+  }
+  100% {
+    opacity: 0.9;
+  }
+}
+
+/* Improved retro pixel borders */
+.pixel-border {
+  position: relative;
+  border: var(--pixel-border-size) solid var(--pixel-border-color);
+  box-shadow: var(--pixel-shadow);
+  image-rendering: pixelated;
+}
+
+/* Enhanced TV box styling */
+.pixel-box {
+  background-color: var(--tv-screen);
+  border: 4px solid var(--tv-border);
+  border-radius: 10px;
+  box-shadow: inset 0 0 15px var(--tv-glow), 0 0 20px var(--tv-shadow);
+  padding: 5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(140, 235, 245, 0.07),
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Improved retro button styling */
+.retro-btn {
+  background-color: var(--retro-blue);
+  color: white;
+  border: none;
+  font-family: var(--pixel-font);
+  font-size: 14px;
+  padding: 5px 10px;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  transform: translate(0, 0);
+  transition: transform 0.1s, box-shadow 0.1s;
+  cursor: pointer;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.retro-btn:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 #000;
+  filter: brightness(1.1);
+}
+
+.retro-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+/* Enhanced blinking cursor */
+.cursor-blink {
+  display: inline-block;
+  width: 10px;
+  height: 16px;
+  background-color: var(--terminal-text);
+  animation: blink 1s step-start infinite;
+  box-shadow: 0 0 4px rgba(122, 255, 155, 0.5);
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Improved typing effect */
+.typing-animation .dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--retro-green);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+  opacity: 0.9;
+  box-shadow: 0 0 4px rgba(122, 255, 155, 0.5);
+}
+
+.typing-animation .dot:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.typing-animation .dot:nth-child(3) {
+  animation-delay: 1s;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(0.7);
+  }
+  50% {
+    transform: scale(1);
+  }
+}
+
+/* Enhanced TV static noise */
+.tv-static {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 1;
+  animation: static-noise 0.5s steps(10) infinite;
+}
+
+/* Screen power-on animation */
+.power-on {
+  animation: powerOn 1.2s ease-in-out forwards;
+}
+
+@keyframes powerOn {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  20% {
+    opacity: 0.5;
+    transform: scale(0.99);
+    filter: brightness(1.5);
+  }
+  35% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.8;
+    filter: brightness(1.2);
+  }
+  75% {
+    filter: brightness(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Text glow effect for terminal text */
+.terminal-text {
+  color: var(--terminal-text);
+  text-shadow: var(--text-glow);
+  font-family: var(--terminal-font);
+  letter-spacing: 1px;
+}
+
+/* Paper texture background for light mode */
+.paper-texture {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paperFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='2' seed='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paperFilter)' opacity='0.07'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* TV scan effect animation */
+@keyframes tv-scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.5;
+  }
+  10% {
+    opacity: 0.2;
+  }
+  30% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  75% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+}
+
+/* TV static noise flicker */
+@keyframes static-noise {
+  0% {
+    background-position: 0% 0%;
+  }
+  20% {
+    background-position: 25% 15%;
+  }
+  40% {
+    background-position: 10% 30%;
+  }
+  60% {
+    background-position: 30% 15%;
+  }
+  80% {
+    background-position: 15% 25%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+/* Add a scan line effect */
+.tv-scan {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 15px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.1),
+    rgba(120, 230, 240, 0.2),
+    rgba(255, 255, 255, 0.1)
+  );
+  z-index: 15;
+  opacity: 0.3;
+  animation: tv-scan 3s linear infinite;
+}
+
+/* Pixel noise effect */
+.pixel-noise {
+  background-image: url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23FFFFFF' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+  animation: static-noise 0.8s steps(10) infinite;
+}
