@@ -32,7 +32,7 @@ export function Card({
   const isDark = mode === "dark";
 
   const getCardStyles = () => {
-    let styles = { ...cardStyles.base };
+    let styles = { ...cardStyles.base } as React.CSSProperties;
 
     switch (variant) {
       case "glass":
@@ -73,10 +73,6 @@ export function Card({
         ...styles,
         transition: "transform 0.2s, box-shadow 0.2s",
         cursor: "pointer",
-        ":hover": {
-          transform: "translateY(-2px)",
-          boxShadow: "var(--shadow-hover)",
-        },
       };
     }
 
@@ -92,10 +88,11 @@ export function Card({
         ? "retro-message retro-message-assistant"
         : ""
       : "";
+  const hoverClasses = hoverEffect ? "hover-effect" : "";
 
   return (
     <div
-      className={`card ${variant} ${retroClasses} ${messageClasses} ${className}`}
+      className={`card ${variant} ${retroClasses} ${messageClasses} ${hoverClasses} ${className}`}
       style={getCardStyles()}
       onClick={onClick}
       role={role}

@@ -22,7 +22,7 @@ export function useFocus<T extends HTMLElement>({
   dependencies = [],
   delay = 0,
   attemptCount = 3, // Default to 3 retry attempts
-}: UseFocusOptions<T>): RefObject<T> {
+}: UseFocusOptions<T>) {
   const internalRef = useRef<T>(null);
 
   // Use the external ref if provided, otherwise use the internal one

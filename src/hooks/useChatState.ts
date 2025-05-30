@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Message, ChatState } from "@/types/chat";
+import { Message, ChatState, ChatSessionState } from "@/types/chat";
 import { useSound } from "@/context/SoundContext";
 import { sendChatMessage, formatMessagesForApi } from "@/services/chatService";
 import { SOUNDS, ERROR_MESSAGES } from "@/utils/constants";
@@ -8,6 +8,9 @@ import { SOUNDS, ERROR_MESSAGES } from "@/utils/constants";
 export function useChatState() {
   const [chatState, setChatState] = useState<ChatState>({
     messages: [],
+    status: ChatSessionState.Idle,
+    conversationId: null,
+    title: "New Chat",
     isLoading: false,
     error: null,
   });
@@ -36,6 +39,7 @@ export function useChatState() {
       setChatState((prev) => ({
         ...prev,
         messages: [...prev.messages, userMessage],
+        status: ChatSessionState.Loading,
         isLoading: true,
         error: null,
       }));
@@ -68,6 +72,7 @@ export function useChatState() {
           setChatState((prev) => ({
             ...prev,
             messages: [...prev.messages, assistantMessage],
+            status: ChatSessionState.Idle,
             isLoading: false,
           }));
         } else {
@@ -81,6 +86,7 @@ export function useChatState() {
 
         setChatState((prev) => ({
           ...prev,
+          status: ChatSessionState.Error,
           isLoading: false,
           error:
             error instanceof Error ? error.message : ERROR_MESSAGES.DEFAULT,
@@ -96,6 +102,9 @@ export function useChatState() {
   const clearChat = useCallback(() => {
     setChatState({
       messages: [],
+      status: ChatSessionState.Idle,
+      conversationId: null,
+      title: "New Chat",
       isLoading: false,
       error: null,
     });

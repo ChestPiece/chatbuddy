@@ -5,6 +5,22 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { SoundProvider } from "@/context/SoundContext";
 import { AppHeader } from "@/components/AppHeader";
 import { APP_INFO } from "@/utils/constants";
+import { Press_Start_2P, VT323 } from "next/font/google";
+
+// Configure the fonts
+const pressStart2P = Press_Start_2P({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-press-start-2p",
+});
+
+const vt323 = VT323({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-vt323",
+});
 
 export const metadata: Metadata = {
   title: APP_INFO.NAME,
@@ -24,20 +40,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" style={{ overflow: "hidden", height: "100%" }}>
+    <html
+      lang="en"
+      style={{ overflow: "hidden", height: "100%" }}
+      className={`${pressStart2P.variable} ${vt323.variable}`}
+    >
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
-          rel="stylesheet"
-          as="font"
-          crossOrigin="anonymous"
-        />
         <meta name="theme-color" content="#051122" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>

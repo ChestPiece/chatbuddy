@@ -62,12 +62,23 @@ const formatMessagesForStorage = (
 const formatMessagesFromStorage = (data: DbMessage[]): Message[] => {
   return data.map((item) => ({
     id: item.id,
-    role: item.role,
+    role: ensureValidRole(item.role),
     content: item.content,
     createdAt: new Date(item.created_at),
     contextId: item.context_id || undefined,
     referencesMessageIds: item.references_message_ids || undefined,
   }));
+};
+
+/**
+ * Ensure the role is a valid Message role
+ */
+const ensureValidRole = (role: string): "user" | "assistant" | "system" => {
+  if (role === "user" || role === "assistant" || role === "system") {
+    return role;
+  }
+  // Default to user if role is not recognized
+  return "user";
 };
 
 /**

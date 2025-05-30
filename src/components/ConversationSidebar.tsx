@@ -1,10 +1,110 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, memo } from "react";
-import { ConversationSummary } from "@/types/chat";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSound } from "@/context/SoundContext";
 import SessionManager from "@/utils/sessionManager";
 import Database from "@/utils/database";
+import { formatRelativeTime } from "@/utils/dateUtils";
+
+// Enhanced type for display purposes
+interface DisplayConversation {
+  id: string;
+  title: string;
+  date: Date;
+  isActive: boolean;
+  messageCount: number;
+}
+
+interface ConversationItemProps {
+  conversation: DisplayConversation;
+  isActive: boolean;
+  onSelect: () => void;
+  onDelete: (e: React.MouseEvent) => void;
+}
+
+function ConversationItem({
+  conversation,
+  isActive,
+  onSelect,
+  onDelete,
+}: ConversationItemProps) {
+  const [formattedDate, setFormattedDate] = useState<string>("");
+
+  // Format the date on the client side only
+  useEffect(() => {
+    setFormattedDate(formatRelativeTime(conversation.date));
+  }, [conversation.date]);
+
+  return (
+    <div
+      className={`conversation-item ${isActive ? "active" : ""}`}
+      onClick={onSelect}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "0.75rem",
+        borderRadius: "0.25rem",
+        backgroundColor: isActive
+          ? "var(--primary-light)"
+          : "var(--background-alt)",
+        cursor: "pointer",
+        transition: "background-color 0.2s ease",
+        position: "relative",
+        border: `1px solid ${
+          isActive ? "var(--primary)" : "var(--border-dark)"
+        }`,
+      }}
+    >
+      <div style={{ overflow: "hidden", flex: 1 }}>
+        <div
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: isActive ? "bold" : "normal",
+            marginBottom: "0.25rem",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: isActive ? "var(--primary)" : "var(--text)",
+          }}
+        >
+          {conversation.title}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.6rem",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <span>{formattedDate}</span>
+          <span>•</span>
+          <span>{conversation.messageCount} messages</span>
+        </div>
+      </div>
+      <button
+        onClick={onDelete}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--text-secondary)",
+          fontSize: "0.75rem",
+          padding: "0.25rem",
+          marginLeft: "0.5rem",
+          borderRadius: "0.25rem",
+          opacity: 0.6,
+          transition: "opacity 0.2s",
+        }}
+        aria-label="Delete conversation"
+      >
+        🗑️
+      </button>
+    </div>
+  );
+}
 
 interface ConversationSidebarProps {
   onSelectConversation: (conversationId: string) => void;
@@ -14,95 +114,6 @@ interface ConversationSidebarProps {
   onClose: () => void;
 }
 
-// Memoize conversation item for better performance
-const ConversationItem = memo(
-  ({
-    conversation,
-    isActive,
-    onSelect,
-    onDelete,
-  }: {
-    conversation: ConversationSummary;
-    isActive: boolean;
-    onSelect: () => void;
-    onDelete: (e: React.MouseEvent) => void;
-  }) => {
-    // Handle date formatting on client-side only to prevent hydration mismatch
-    const [formattedDate, setFormattedDate] = useState("");
-
-    useEffect(() => {
-      // Format date on client side only
-      setFormattedDate(new Date(conversation.updatedAt).toLocaleDateString());
-    }, [conversation.updatedAt]);
-
-    return (
-      <div
-        onClick={onSelect}
-        style={{
-          backgroundColor: isActive ? "var(--primary-light)" : "var(--card-bg)",
-          border: "1px solid var(--border)",
-          borderRadius: "0.25rem",
-          padding: "0.75rem",
-          cursor: "pointer",
-          transition: "background-color 0.2s ease",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontFamily: "var(--system-font)",
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "0.7rem",
-              fontWeight: "bold",
-              color: isActive ? "var(--primary)" : "var(--text)",
-            }}
-          >
-            {conversation.title || "Untitled"}
-          </div>
-          <div
-            style={{
-              fontSize: "0.6rem",
-              color: "var(--text-secondary)",
-              marginTop: "0.25rem",
-            }}
-          >
-            {conversation.messageCount} messages • {formattedDate}
-          </div>
-        </div>
-        <button
-          onClick={onDelete}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--error)",
-            opacity: 0.7,
-            fontFamily: "var(--pixel-font)",
-            fontSize: "0.7rem",
-            padding: "0.25rem",
-            transition: "opacity 0.2s ease",
-          }}
-          title="Delete conversation"
-          aria-label="Delete conversation"
-        >
-          ×
-        </button>
-      </div>
-    );
-  }
-);
-
-ConversationItem.displayName = "ConversationItem";
-
 export function ConversationSidebar({
   onSelectConversation,
   onNewConversation,
@@ -110,59 +121,28 @@ export function ConversationSidebar({
   isOpen,
   onClose,
 }: ConversationSidebarProps) {
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [conversations, setConversations] = useState<DisplayConversation[]>([]);
   const { playSound } = useSound();
 
-  // Load conversation history on mount and when sidebar opens
-  useEffect(() => {
-    if (isOpen) {
-      loadConversations();
-    }
-  }, [isOpen]);
-
+  // Load conversation summaries
   const loadConversations = useCallback(async () => {
     setIsLoading(true);
+
     try {
+      // Get user ID
       const userId = SessionManager.getUserId();
-      const userConversations = await Database.getUserConversations(userId);
 
-      // Make sure we have the current conversation in the list
-      if (currentConversationId) {
-        const hasCurrentConversation = userConversations.some(
-          (conv) => conv.id === currentConversationId
-        );
+      // Get conversations from history
+      const storedConversations = await Database.getUserConversations(userId);
 
-        if (!hasCurrentConversation) {
-          // Add the current conversation to the list
-          try {
-            const currentConv = await Database.loadConversation(
-              currentConversationId
-            );
-            if (currentConv) {
-              userConversations.unshift({
-                id: currentConv.id,
-                userId: currentConv.userId,
-                title: currentConv.title || "Untitled Conversation",
-                createdAt: currentConv.createdAt,
-                updatedAt: currentConv.updatedAt,
-                messageCount: currentConv.messages?.length || 0,
-              });
-            }
-          } catch (err) {
-            console.error("Failed to load current conversation:", err);
-          }
-        }
-      }
-
-      // Convert to ConversationSummary type if needed
-      const summaries: ConversationSummary[] = userConversations.map(
+      // Create summaries with message counts
+      const summaries: DisplayConversation[] = storedConversations.map(
         (conv) => ({
           id: conv.id,
-          userId: conv.userId,
-          title: conv.title || "Untitled Conversation",
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
+          title: conv.title || "Untitled",
+          date: conv.updatedAt || conv.createdAt,
+          isActive: conv.id === currentConversationId,
           messageCount: conv.messages?.length || 0,
         })
       );
@@ -219,6 +199,11 @@ export function ConversationSidebar({
     },
     [currentConversationId, loadConversations, onNewConversation, playSound]
   );
+
+  // Load conversations on mount and when currentConversationId changes
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   if (!isOpen) return null;
 
@@ -344,7 +329,7 @@ export function ConversationSidebar({
             <ConversationItem
               key={conversation.id}
               conversation={conversation}
-              isActive={conversation.id === currentConversationId}
+              isActive={conversation.isActive}
               onSelect={() => handleSelectConversation(conversation.id)}
               onDelete={(e) => handleDeleteConversation(e, conversation.id)}
             />

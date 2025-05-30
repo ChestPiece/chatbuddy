@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useSound } from "@/context/SoundContext";
 import { APP_INFO } from "@/utils/constants";
-import Image from "next/image";
 
 interface AppHeaderProps {
   title?: string;

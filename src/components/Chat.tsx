@@ -461,11 +461,21 @@ export function Chat() {
       console.error("Error creating new conversation:", error);
       playErrorSound();
     }
-  }, [chatState.messages, playClickSound, playErrorSound]);
+  }, [
+    chatState.messages,
+    playClickSound,
+    playErrorSound,
+    saveCurrentConversation,
+  ]);
 
   const handleSelectConversation = useCallback(
     async (conversationId: string) => {
       try {
+        // Save the current conversation before loading a new one
+        if (chatState.messages.length > 0) {
+          await saveCurrentConversation(chatState.messages);
+        }
+
         // Load the selected conversation
         const conversation = await Database.loadConversation(conversationId);
 
@@ -488,7 +498,7 @@ export function Chat() {
         console.error("Error loading conversation:", error);
       }
     },
-    []
+    [saveCurrentConversation, chatState.messages]
   );
 
   return (

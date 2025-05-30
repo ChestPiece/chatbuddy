@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ButtonHTMLAttributes, ReactNode } from "react";
+import React, { ButtonHTMLAttributes, ReactNode, CSSProperties } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { buttonStyles } from "@/styles/ui";
 
@@ -16,6 +16,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   rightIcon?: ReactNode;
   isLoading?: boolean;
 }
+
+type ExtendedCSSProperties = CSSProperties & {
+  width?: string;
+  backgroundColor?: string;
+};
 
 export function Button({
   variant = "primary",
@@ -40,7 +45,7 @@ export function Button({
 
   // Build combined styles
   const getButtonStyles = () => {
-    let styles = { ...buttonStyles.base, ...sizeStyles[size] };
+    let styles: ExtendedCSSProperties = { ...buttonStyles.base, ...sizeStyles[size] };
 
     if (fullWidth) {
       styles = { ...styles, width: "100%" };
@@ -113,7 +118,9 @@ export function Button({
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           {leftIcon && <span className="button-icon">{leftIcon}</span>}
-          {variant === "retro" ? children.toString().toUpperCase() : children}
+          {variant === "retro" && children
+            ? children.toString().toUpperCase()
+            : children}
           {rightIcon && <span className="button-icon">{rightIcon}</span>}
         </div>
       )}

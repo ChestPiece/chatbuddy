@@ -37,4 +37,6 @@ export interface ChatState {
   status: ChatSessionState;
   conversationId: string | null;
   title: string;
+  isLoading?: boolean;
+  error?: string | null;
 }

@@ -36,14 +36,21 @@ function ChatInputComponent({
   const isInputEmpty = input.trim() === "";
 
   // Use the enhanced useFocus hook with our existing ref
-  useFocus({
-    ref: textareaRef,
+  const focusRef = useFocus<HTMLTextAreaElement>({
     focusOnMount: true,
     focusOnUpdate: true,
     dependencies: [isLoading, input], // Re-focus when loading state or input changes
     delay: 10,
     attemptCount: 5, // Try more times to ensure it gets focus
   });
+
+  // Merge the refs
+  useEffect(() => {
+    if (focusRef.current !== null && textareaRef.current === null) {
+      // This shouldn't happen, but TypeScript needs this check
+      // No action needed as focusRef will handle the focusing
+    }
+  }, [focusRef]);
 
   // Ensure textarea gets focus after component updates (like after sending a message)
   useEffect(() => {
@@ -131,8 +138,9 @@ function ChatInputComponent({
     imageRendering: "pixelated",
   };
 
-  const textareaStyle: CSSProperties = {
-    resize: "none",
+  // Convert CSSProperties to style properties that TextareaAutosize accepts
+  const textareaStyle = {
+    resize: "none" as const,
     padding: "8px 12px",
     paddingRight: "80px",
     fontSize: "1rem",
@@ -144,7 +152,7 @@ function ChatInputComponent({
     width: "100%",
     lineHeight: "1.5",
     letterSpacing: "1px",
-    position: "relative",
+    position: "relative" as const,
     zIndex: 2,
   };
 
@@ -212,7 +220,14 @@ function ChatInputComponent({
             ></div>
 
             <TextareaAutosize
-              ref={textareaRef}
+              ref={(element) => {
+                // Assign to both refs
+                if (textareaRef) textareaRef.current = element;
+                if (focusRef && typeof focusRef === "object")
+                  (
+                    focusRef as React.MutableRefObject<HTMLTextAreaElement | null>
+                  ).current = element;
+              }}
               value={input}
               onChange={handleChange}
               onKeyDown={handleKeyDown}

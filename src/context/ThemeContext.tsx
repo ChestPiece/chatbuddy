@@ -32,6 +32,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [mode, setMode] = useState<"light" | "dark">("dark");
   const [colorTheme, setColorTheme] = useState<ColorTheme>("default");
 
+  // Initial loading of saved theme preferences
   useEffect(() => {
     if (typeof window !== "undefined") {
       // Load theme mode from localStorage
@@ -47,11 +48,15 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       if (savedColorTheme && isValidColorTheme(savedColorTheme)) {
         setColorTheme(savedColorTheme);
       }
-
-      // Apply theme classes to the body
-      updateBodyClasses(mode, colorTheme);
     }
   }, []);
+
+  // Effect to update body classes whenever theme changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      updateBodyClasses(mode, colorTheme);
+    }
+  }, [mode, colorTheme]);
 
   // Function to check if a string is a valid ColorTheme
   const isValidColorTheme = (theme: string): theme is ColorTheme => {

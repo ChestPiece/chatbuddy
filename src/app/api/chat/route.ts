@@ -31,6 +31,15 @@ interface IncomingMessage {
   content: string;
 }
 
+// Ensure the role is a valid Message role
+function ensureValidRole(role: string): "user" | "assistant" | "system" {
+  if (role === "user" || role === "assistant" || role === "system") {
+    return role;
+  }
+  // Default to user if role is not recognized
+  return "user";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
       const formattedInternalMessages: Message[] = messages.map(
         (msg: IncomingMessage) => ({
           id: msg.id || `${msg.role}-${Date.now()}`,
-          role: msg.role,
+          role: ensureValidRole(msg.role),
           content: msg.content,
           createdAt: new Date(),
         })
@@ -101,11 +110,11 @@ export async function POST(req: NextRequest) {
       // Format messages for OpenAI with enhanced context handling
       const formattedMessages = [
         {
-          role: "system",
+          role: "system" as const,
           content: enhancedSystemPrompt,
         },
         ...messages.map((msg: IncomingMessage) => ({
-          role: msg.role,
+          role: ensureValidRole(msg.role),
           content: msg.content,
         })),
       ];

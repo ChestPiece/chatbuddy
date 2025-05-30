@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev-no-turbo": "next dev --turbopack false",
-    "build": "next build",
+    "type-check": "tsc --noEmit",
+    "build": "npm run lint && npm run type-check && next build",
     "start": "next start",
     "lint": "next lint",
     "setup": "node setup.js"
