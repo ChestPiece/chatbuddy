@@ -2,6 +2,7 @@ import { OpenAI } from "openai";
 import { NextRequest } from "next/server";
 import { Message } from "@/types/chat";
 import { getContextEnhancedPrompt } from "@/utils/contextManager";
+import { LRUCache } from "lru-cache";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -10,6 +11,13 @@ const openai = new OpenAI({
 
 // Flag to determine if we should use mock responses when API key is missing
 const useMockResponses = !process.env.OPENAI_API_KEY;
+
+// Cache for storing responses to similar queries
+const responseCache = new LRUCache<string, string>({
+  max: 100, // Maximum number of items to store in cache
+  ttl: 1000 * 60 * 60, // Cache TTL: 1 hour
+  allowStale: false,
+});
 
 // Define the system prompt for the agent with enhanced context awareness
 const SYSTEM_PROMPT = `You are Chat Buddy, a friendly and intelligent chat companion designed to be highly context-aware.
@@ -40,6 +48,18 @@ function ensureValidRole(role: string): "user" | "assistant" | "system" {
   return "user";
 }
 
+// Generate a cache key from messages array
+function generateCacheKey(messages: IncomingMessage[]): string {
+  // Get only the last 3 messages for the cache key to balance cache hits and freshness
+  const recentMessages = messages.slice(-3);
+  return JSON.stringify(
+    recentMessages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }))
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
@@ -63,16 +83,21 @@ export async function POST(req: NextRequest) {
       );
 
       // Create a stream that will emit the mock response character by character
+      // Using optimized batching for better performance
       const stream = new ReadableStream({
         async start(controller) {
-          for (let i = 0; i < mockContent.length; i++) {
-            const chunk = mockContent.charAt(i);
+          const BATCH_SIZE = 5; // Number of characters to send in each batch
+
+          for (let i = 0; i < mockContent.length; i += BATCH_SIZE) {
+            const end = Math.min(i + BATCH_SIZE, mockContent.length);
+            const chunk = mockContent.substring(i, end);
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ content: chunk })}\n\n`)
             );
-            // Add a delay to simulate streaming
-            await new Promise((resolve) => setTimeout(resolve, 30));
+            // Reduced delay for faster response
+            await new Promise((resolve) => setTimeout(resolve, 15));
           }
+
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         },
@@ -88,7 +113,44 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      console.log("Calling OpenAI API with messages:", messages);
+      // Check cache first for similar recent queries
+      const cacheKey = generateCacheKey(messages);
+      const cachedResponse = responseCache.get(cacheKey);
+
+      if (cachedResponse) {
+        console.log("Using cached response");
+
+        // Return cached response as a stream
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            // Send in chunks to simulate streaming but faster
+            const CHUNK_SIZE = 20;
+            for (let i = 0; i < cachedResponse.length; i += CHUNK_SIZE) {
+              const end = Math.min(i + CHUNK_SIZE, cachedResponse.length);
+              const chunk = cachedResponse.substring(i, end);
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ content: chunk })}\n\n`
+                )
+              );
+              // Very short delay for cached responses
+              await new Promise((resolve) => setTimeout(resolve, 5));
+            }
+
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+          },
+        });
+      }
 
       // Get the enhanced system prompt with context from our contextManager
       // First convert the messages to our internal Message type
@@ -130,20 +192,31 @@ export async function POST(req: NextRequest) {
         max_tokens: 1024,
         // Slightly increase temperature for more contextually varied responses
         temperature: 0.7,
+        // Add parameters for better performance
+        frequency_penalty: 0.1,
+        presence_penalty: 0.2,
       });
 
       // Create a stream that transforms the OpenAI response
       const encoder = new TextEncoder();
+      let fullResponse = ""; // Accumulate full response for caching
+
       const stream = new ReadableStream({
         async start(controller) {
           for await (const chunk of response) {
             // Extract the content delta if it exists
             if (chunk.choices[0]?.delta?.content) {
               const content = chunk.choices[0].delta.content;
+              fullResponse += content; // Accumulate for caching
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
               );
             }
+          }
+
+          // Store in cache when complete
+          if (fullResponse.length > 0) {
+            responseCache.set(cacheKey, fullResponse);
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -175,55 +248,59 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Function to generate mock responses with context awareness
+// Mock response function (implementation needed if you're using mock responses)
 function getMockResponse(
   userMessage: string,
   allMessages: IncomingMessage[]
 ): string {
-  // Convert the user message to lowercase for easier matching
-  const message = userMessage.toLowerCase();
+  // Generate a context-aware mock response
+  const mockResponses = [
+    `I understand your question about "${userMessage.substring(
+      0,
+      30
+    )}...". Let me help you with that.`,
+    `That's an interesting point about "${userMessage.substring(
+      0,
+      20
+    )}...". Here's what I think...`,
+    `Thanks for asking about that. Based on our conversation, I'd say...`,
+    `I'm processing your question about ${userMessage.substring(
+      0,
+      25
+    )}. Here's my response...`,
+  ];
 
-  // Check for context from previous messages
-  const previousUserMessages = allMessages
-    .filter((msg: IncomingMessage) => msg.role === "user")
-    .map((msg: IncomingMessage) => msg.content);
+  // Add some context awareness to mock responses
+  let response =
+    mockResponses[Math.floor(Math.random() * mockResponses.length)];
 
-  const hasContext = previousUserMessages.length > 1;
-  const prevMessage =
-    previousUserMessages.length > 1
-      ? previousUserMessages[previousUserMessages.length - 2]
-      : "";
+  // Check if we have previous context to reference
+  if (allMessages.length > 2) {
+    const previousUserMessages = allMessages
+      .filter((msg) => msg.role === "user")
+      .slice(0, -1)
+      .map((msg) => msg.content);
 
-  // Context-aware responses
-  if (hasContext && message.includes("what") && !message.includes("your")) {
-    return `Based on our conversation, I think you're asking about "${prevMessage}". Could you clarify what specific information you're looking for?`;
+    if (previousUserMessages.length > 0) {
+      const randomPrevMsg =
+        previousUserMessages[
+          Math.floor(Math.random() * previousUserMessages.length)
+        ];
+      response += `\n\nEarlier you mentioned "${randomPrevMsg.substring(
+        0,
+        30
+      )}..." which relates to this.`;
+    }
   }
 
-  // Simple pattern matching for common questions
-  if (
-    message.includes("hello") ||
-    message.includes("hi") ||
-    message.includes("hey")
-  ) {
-    return hasContext
-      ? "Hello again! Continuing our conversation, how can I help you further?"
-      : "Hello! How can I help you today?";
-  } else if (message.includes("how are you")) {
-    return "I'm just a simulated response in your application, but I'm working well! How can I assist you?";
-  } else if (message.includes("your name")) {
-    return "I'm Chat Buddy, your friendly chat companion.";
-  } else if (message.includes("weather")) {
-    return "I can't check the real weather as this is a mock response, but I hope it's nice where you are!";
-  } else if (message.includes("thank")) {
-    return "You're welcome! Let me know if there's anything else you need help with.";
-  } else if (message.includes("bye") || message.includes("goodbye")) {
-    return "Goodbye! Feel free to return if you have more questions.";
-  } else if (message.length < 10) {
-    return "Could you please provide a bit more information so I can assist you better?";
-  }
+  // Add more content to make it feel like a complete response
+  response += `\n\nTo address your specific question, I would suggest the following approach...
+  
+1. First, consider the key aspects of what you're asking
+2. Then, evaluate the best way to proceed based on your goals
+3. Finally, implement the solution that best fits your needs
 
-  // Default contextual response
-  return hasContext
-    ? `I notice we've been discussing various topics. To respond to "${userMessage}", I need to tell you that this is a mock response in development mode. To get real AI responses, please add your OpenAI API key to the environment variables.`
-    : "This is a mock response because the application is running without an OpenAI API key. To get real AI responses, please add your API key to the environment variables.";
+I hope that helps! Let me know if you need any clarification or have additional questions.`;
+
+  return response;
 }

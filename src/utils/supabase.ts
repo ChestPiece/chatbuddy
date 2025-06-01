@@ -4,13 +4,41 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-// Create a single supabase client for the entire app
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// More robust client creation with proper error handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    fetch: (...args) => fetch(...args),
+  },
+});
 
 // Function to check if Supabase is properly configured
 export const isSupabaseConfigured = (): boolean => {
-  return false; // Force using localStorage instead of Supabase
+  const configured = !!supabaseUrl && !!supabaseAnonKey;
+
+  // Show warning in development if not configured
+  if (!configured && process.env.NODE_ENV === "development") {
+    console.warn(
+      "Supabase is not configured. Please check your .env.local file and ensure you have added the following variables:\n" +
+        "NEXT_PUBLIC_SUPABASE_URL\n" +
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY\n" +
+        "The app will fall back to localStorage for data storage."
+    );
+  }
+
+  return configured;
 };
+
+// Define a type for Supabase error objects
+interface SupabaseError {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+}
 
 // Function to handle errors consistently
 export const handleSupabaseError = (
@@ -26,74 +54,15 @@ export const handleSupabaseError = (
         "Supabase configuration is missing. Please check your .env.local file."
       );
     }
+
+    // Additional debug info for Supabase errors
+    if (error && typeof error === "object" && "code" in error) {
+      const supabaseError = error as SupabaseError;
+      console.error(`Error code: ${supabaseError.code}`);
+      console.error(
+        `Error details: ${supabaseError.details || "No details available"}`
+      );
+      console.error(`Error hint: ${supabaseError.hint || "No hint available"}`);
+    }
   }
-};
-
-// Authentication helpers
-export const authHelpers = {
-  // Get the current user session
-  getCurrentSession: async () => {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return data.session;
-    } catch (error) {
-      handleSupabaseError(error, "get current session");
-      return null;
-    }
-  },
-
-  // Get the current user
-  getCurrentUser: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return data.user;
-    } catch (error) {
-      handleSupabaseError(error, "get current user");
-      return null;
-    }
-  },
-
-  // Sign in with email and password
-  signInWithEmail: async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return { user: data.user, session: data.session };
-    } catch (error) {
-      handleSupabaseError(error, "sign in with email");
-      throw error;
-    }
-  },
-
-  // Sign up with email and password
-  signUpWithEmail: async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return { user: data.user, session: data.session };
-    } catch (error) {
-      handleSupabaseError(error, "sign up with email");
-      throw error;
-    }
-  },
-
-  // Sign out the current user
-  signOut: async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      handleSupabaseError(error, "sign out");
-      return false;
-    }
-  },
 };

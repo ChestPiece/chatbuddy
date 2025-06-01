@@ -20,28 +20,29 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_sequence ON chat_messages(sequence)
 CREATE TABLE IF NOT EXISTS conversation_contexts (
   session_id UUID PRIMARY KEY,
   topic TEXT,
+  name TEXT,
   start_time TIMESTAMP WITH TIME ZONE NOT NULL,
   last_update_time TIMESTAMP WITH TIME ZONE NOT NULL,
   message_count INTEGER NOT NULL,
   detected_entities TEXT[]
 );
 
--- Create RLS (Row Level Security) policies for chat_messages
+-- Enable Row Level Security on the chat_messages table
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
--- Create a policy that allows users to manage only their own messages
--- This is important for when you implement authentication later
+-- Create a policy that allows access only to messages with matching session_id
+-- This ensures clients can only access their own data without needing authentication
 CREATE POLICY chat_messages_policy ON chat_messages
-  USING (true)  -- In this simplified version, we allow all operations
-  WITH CHECK (true);
+  USING (session_id::text = current_setting('app.session_id', true))
+  WITH CHECK (session_id::text = current_setting('app.session_id', true));
 
--- Create RLS policies for conversation_contexts
+-- Enable Row Level Security on the conversation_contexts table
 ALTER TABLE conversation_contexts ENABLE ROW LEVEL SECURITY;
 
--- Create a policy that allows users to manage only their own conversation contexts
+-- Create a policy that allows access only to contexts with matching session_id
 CREATE POLICY conversation_contexts_policy ON conversation_contexts
-  USING (true)  -- In this simplified version, we allow all operations
-  WITH CHECK (true);
+  USING (session_id::text = current_setting('app.session_id', true))
+  WITH CHECK (session_id::text = current_setting('app.session_id', true));
 
 -- Create a function to clean up old messages (optional, for maintenance)
 CREATE OR REPLACE FUNCTION cleanup_old_chats()
@@ -54,5 +55,13 @@ BEGIN
   -- Delete contexts with no recent updates
   DELETE FROM conversation_contexts 
   WHERE last_update_time < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to set the session_id for RLS policies
+CREATE OR REPLACE FUNCTION set_session_id(sid text)
+RETURNS void AS $$
+BEGIN
+  PERFORM set_config('app.session_id', sid, false);
 END;
 $$ LANGUAGE plpgsql; 

@@ -82,7 +82,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     document.body.classList.forEach((cls) => {
       if (cls.startsWith("theme-")) {
         document.body.classList.remove(cls);
-      }
+    }
     });
     document.body.classList.add(`theme-${newColorTheme}`);
   };

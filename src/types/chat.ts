@@ -11,6 +11,7 @@ export interface Message {
 
 export interface ConversationContext {
   topic?: string;
+  name?: string;
   startTime: Date;
   lastUpdateTime: Date;
   messageCount: number;

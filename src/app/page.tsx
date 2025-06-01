@@ -234,7 +234,8 @@ export default function Home() {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            maxHeight: "calc(100vh - 60px)" /* Subtract header height */,
+            maxHeight:
+              "100vh" /* Use full viewport height now that header is removed */,
             position: "relative",
           }}
         >

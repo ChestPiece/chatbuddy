@@ -118,7 +118,9 @@ function MessageComponent({ message, isLastInGroup = false }: MessageProps) {
 
   return (
     <div
-      className={`flex-${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex-${
+        isUser ? "justify-end" : "justify-start"
+      } message-container`}
       style={containerStyle}
     >
       {/* Avatar for assistant */}

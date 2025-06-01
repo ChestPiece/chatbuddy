@@ -162,9 +162,9 @@ export function ConversationSidebar({
 
   const handleSelectConversation = useCallback(
     (conversationId: string) => {
-      playSound("/click.mp3", 0.2);
-      onSelectConversation(conversationId);
-      onClose();
+    playSound("/click.mp3", 0.2);
+    onSelectConversation(conversationId);
+    onClose();
     },
     [onSelectConversation, onClose, playSound]
   );
@@ -177,25 +177,25 @@ export function ConversationSidebar({
 
   const handleDeleteConversation = useCallback(
     async (e: React.MouseEvent, conversationId: string) => {
-      e.stopPropagation(); // Prevent triggering the conversation selection
-      playSound("/click.mp3", 0.2);
+    e.stopPropagation(); // Prevent triggering the conversation selection
+    playSound("/click.mp3", 0.2);
 
-      try {
-        // Delete the conversation from storage
-        const success = await Database.deleteConversation(conversationId);
+    try {
+      // Delete the conversation from storage
+      const success = await Database.deleteConversation(conversationId);
 
-        if (success) {
-          // If the current conversation was deleted, create a new one
-          if (conversationId === currentConversationId) {
-            onNewConversation();
-          }
-
-          // Reload the conversation list
-          await loadConversations();
+      if (success) {
+        // If the current conversation was deleted, create a new one
+        if (conversationId === currentConversationId) {
+          onNewConversation();
         }
-      } catch (error) {
-        console.error("Failed to delete conversation:", error);
+
+        // Reload the conversation list
+        await loadConversations();
       }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    }
     },
     [currentConversationId, loadConversations, onNewConversation, playSound]
   );

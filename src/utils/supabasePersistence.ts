@@ -1,23 +1,12 @@
 import { Message, ConversationContext } from "@/types/chat";
-import {
-  supabase,
-  isSupabaseConfigured,
-  handleSupabaseError,
-} from "./supabase";
+import { supabase, handleSupabaseError } from "./supabase";
 import { v4 as uuidv4 } from "uuid";
-
-// Fallback to local storage if Supabase is not configured
-import {
-  saveMessages as saveMessagesToLocal,
-  loadMessages as loadMessagesFromLocal,
-  clearMessages as clearMessagesFromLocal,
-} from "./chatPersistence";
 
 // Define the database tables
 const MESSAGES_TABLE = "chat_messages";
 const CONTEXT_TABLE = "conversation_contexts";
 
-// Session identifier to group messages (simulating user authentication)
+// Session identifier to group messages
 let sessionId: string | null = null;
 
 /**
@@ -47,14 +36,11 @@ const getSessionId = (): string => {
  * Save chat messages to Supabase
  */
 export const saveMessages = async (messages: Message[]): Promise<void> => {
-  // If Supabase is not configured, fall back to localStorage
-  if (!isSupabaseConfigured()) {
-    saveMessagesToLocal(messages);
-    return;
-  }
-
   try {
     const sid = getSessionId();
+
+    // Set the session_id in Supabase for RLS policies
+    await supabase.rpc("set_session_id", { sid });
 
     // First, delete all existing messages for this session
     // This simplifies the update process (delete and re-insert pattern)
@@ -83,8 +69,7 @@ export const saveMessages = async (messages: Message[]): Promise<void> => {
     if (error) throw error;
   } catch (error) {
     handleSupabaseError(error, "save messages");
-    // Fall back to local storage on error
-    saveMessagesToLocal(messages);
+    console.error("Failed to save messages to database:", error);
   }
 };
 
@@ -92,13 +77,11 @@ export const saveMessages = async (messages: Message[]): Promise<void> => {
  * Load chat messages from Supabase
  */
 export const loadMessages = async (): Promise<Message[]> => {
-  // If Supabase is not configured, fall back to localStorage
-  if (!isSupabaseConfigured()) {
-    return loadMessagesFromLocal();
-  }
-
   try {
     const sid = getSessionId();
+
+    // Set the session_id in Supabase for RLS policies
+    await supabase.rpc("set_session_id", { sid });
 
     // Get all messages for this session, ordered by sequence
     const { data, error } = await supabase
@@ -124,8 +107,8 @@ export const loadMessages = async (): Promise<Message[]> => {
     }));
   } catch (error) {
     handleSupabaseError(error, "load messages");
-    // Fall back to local storage on error
-    return loadMessagesFromLocal();
+    console.error("Failed to load messages from database:", error);
+    return [];
   }
 };
 
@@ -133,14 +116,11 @@ export const loadMessages = async (): Promise<Message[]> => {
  * Clear chat messages from Supabase
  */
 export const clearMessages = async (): Promise<void> => {
-  // If Supabase is not configured, fall back to localStorage
-  if (!isSupabaseConfigured()) {
-    clearMessagesFromLocal();
-    return;
-  }
-
   try {
     const sid = getSessionId();
+
+    // Set the session_id in Supabase for RLS policies
+    await supabase.rpc("set_session_id", { sid });
 
     // Delete all messages for this session
     const { error } = await supabase
@@ -151,8 +131,7 @@ export const clearMessages = async (): Promise<void> => {
     if (error) throw error;
   } catch (error) {
     handleSupabaseError(error, "clear messages");
-    // Fall back to local storage on error
-    clearMessagesFromLocal();
+    console.error("Failed to clear messages from database:", error);
   }
 };
 
@@ -162,26 +141,17 @@ export const clearMessages = async (): Promise<void> => {
 export const saveContext = async (
   context: ConversationContext
 ): Promise<void> => {
-  if (!isSupabaseConfigured()) {
-    // For local storage, just use the regular localStorage API
-    try {
-      localStorage.setItem("conversationContext", JSON.stringify(context));
-    } catch (error) {
-      console.error(
-        "Failed to save conversation context to localStorage:",
-        error
-      );
-    }
-    return;
-  }
-
   try {
     const sid = getSessionId();
+
+    // Set the session_id in Supabase for RLS policies
+    await supabase.rpc("set_session_id", { sid });
 
     // Format context for insertion
     const formattedContext = {
       session_id: sid,
       topic: context.topic || null,
+      name: context.name || null,
       start_time: context.startTime.toISOString(),
       last_update_time: context.lastUpdateTime.toISOString(),
       message_count: context.messageCount,
@@ -196,15 +166,7 @@ export const saveContext = async (
     if (error) throw error;
   } catch (error) {
     handleSupabaseError(error, "save context");
-    // Fallback to localStorage
-    try {
-      localStorage.setItem("conversationContext", JSON.stringify(context));
-    } catch (localError) {
-      console.error(
-        "Failed to save conversation context to localStorage:",
-        localError
-      );
-    }
+    console.error("Failed to save conversation context to database:", error);
   }
 };
 
@@ -219,33 +181,11 @@ export const loadContext = async (): Promise<ConversationContext> => {
     messageCount: 0,
   };
 
-  if (!isSupabaseConfigured()) {
-    // Fallback to localStorage
-    try {
-      const storedContext = localStorage.getItem("conversationContext");
-      if (!storedContext) return defaultContext;
-
-      // Parse dates properly
-      return JSON.parse(storedContext, (key, value) => {
-        if (
-          typeof value === "string" &&
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*Z$/.test(value)
-        ) {
-          return new Date(value);
-        }
-        return value;
-      });
-    } catch (error) {
-      console.error(
-        "Failed to load conversation context from localStorage:",
-        error
-      );
-      return defaultContext;
-    }
-  }
-
   try {
     const sid = getSessionId();
+
+    // Set the session_id in Supabase for RLS policies
+    await supabase.rpc("set_session_id", { sid });
 
     // Get the context for this session
     const { data, error } = await supabase
@@ -255,18 +195,21 @@ export const loadContext = async (): Promise<ConversationContext> => {
       .single();
 
     if (error) {
-      // If no context is found, that's expected for new conversations
       if (error.code === "PGRST116") {
+        // No results found, which is fine for a new user
         return defaultContext;
       }
       throw error;
     }
 
-    if (!data) return defaultContext;
+    if (!data) {
+      return defaultContext;
+    }
 
-    // Convert database format back to ConversationContext
+    // Convert database format back to ConversationContext object
     return {
       topic: data.topic || undefined,
+      name: data.name || undefined,
       startTime: new Date(data.start_time),
       lastUpdateTime: new Date(data.last_update_time),
       messageCount: data.message_count,
@@ -274,27 +217,8 @@ export const loadContext = async (): Promise<ConversationContext> => {
     };
   } catch (error) {
     handleSupabaseError(error, "load context");
-    // Fallback to localStorage
-    try {
-      const storedContext = localStorage.getItem("conversationContext");
-      if (!storedContext) return defaultContext;
-
-      return JSON.parse(storedContext, (key, value) => {
-        if (
-          typeof value === "string" &&
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*Z$/.test(value)
-        ) {
-          return new Date(value);
-        }
-        return value;
-      });
-    } catch (localError) {
-      console.error(
-        "Failed to load conversation context from localStorage:",
-        localError
-      );
-      return defaultContext;
-    }
+    console.error("Failed to load conversation context from database:", error);
+    return defaultContext;
   }
 };
 
@@ -302,21 +226,11 @@ export const loadContext = async (): Promise<ConversationContext> => {
  * Clear conversation context from Supabase
  */
 export const clearContext = async (): Promise<void> => {
-  if (!isSupabaseConfigured()) {
-    // Fallback to localStorage
-    try {
-      localStorage.removeItem("conversationContext");
-    } catch (error) {
-      console.error(
-        "Failed to clear conversation context from localStorage:",
-        error
-      );
-    }
-    return;
-  }
-
   try {
     const sid = getSessionId();
+
+    // Set the session_id in Supabase for RLS policies
+    await supabase.rpc("set_session_id", { sid });
 
     // Delete the context for this session
     const { error } = await supabase
@@ -327,14 +241,6 @@ export const clearContext = async (): Promise<void> => {
     if (error) throw error;
   } catch (error) {
     handleSupabaseError(error, "clear context");
-    // Fallback to localStorage
-    try {
-      localStorage.removeItem("conversationContext");
-    } catch (localError) {
-      console.error(
-        "Failed to clear conversation context from localStorage:",
-        localError
-      );
-    }
+    console.error("Failed to clear conversation context from database:", error);
   }
 };

@@ -133,18 +133,18 @@ export function ThemeSelector() {
               backgroundColor: "#00f9ff",
               width: "100%",
               height: "100%",
-            }}
-          />
+          }}
+        />
         </div>
       </button>
 
       {/* Theme Dropdown - Rendered in a portal to avoid positioning issues */}
       {isOpen && (
-        <div
-          ref={dropdownRef}
+          <div
+            ref={dropdownRef}
           className="pixel-box theme-dropdown"
-          style={{
-            position: "fixed",
+            style={{
+              position: "fixed",
             ...getDropdownPosition(),
             width: "220px",
             backgroundColor: "var(--tv-screen)",
@@ -159,27 +159,27 @@ export function ThemeSelector() {
           <div className="scanlines" style={{ opacity: 0.1 }}></div>
           <div className="tv-static" style={{ opacity: 0.05 }}></div>
 
-          <div
-            style={{
+            <div
+              style={{
               fontSize: "0.7rem",
               marginBottom: "0.8rem",
               color: "var(--terminal-text-highlight)",
-              fontFamily: "var(--pixel-font)",
+                fontFamily: "var(--pixel-font)",
               letterSpacing: "1px",
               textAlign: "center",
               textShadow: "var(--text-shadow)",
-            }}
-          >
-            SELECT THEME
-          </div>
+              }}
+            >
+              SELECT THEME
+            </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
               gap: "0.6rem",
-            }}
-          >
+              }}
+            >
             {[
               {
                 id: "default",
@@ -212,32 +212,32 @@ export function ThemeSelector() {
                 color: isDark ? "#002b36" : "#fdf6e3",
               },
             ].map((theme) => (
-              <button
-                key={theme.id}
+                <button
+                  key={theme.id}
                 onClick={() => handleThemeChange(theme.id as ColorTheme)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
                   gap: "0.6rem",
-                  padding: "0.5rem",
-                  backgroundColor:
-                    colorTheme === theme.id
+                    padding: "0.5rem",
+                    backgroundColor:
+                      colorTheme === theme.id
                       ? "rgba(255, 255, 255, 0.1)"
-                      : "transparent",
+                        : "transparent",
                   border:
                     colorTheme === theme.id
                       ? "2px solid var(--terminal-text)"
                       : "2px solid transparent",
-                  cursor: "pointer",
-                  width: "100%",
-                  textAlign: "left",
-                }}
-              >
-                <div
-                  style={{
+                    cursor: "pointer",
+                    width: "100%",
+                    textAlign: "left",
+                  }}
+                >
+                  <div
+                    style={{
                     width: "24px",
                     height: "24px",
-                    backgroundColor: theme.color,
+                      backgroundColor: theme.color,
                     border: "2px solid #000",
                     borderRadius: "2px",
                   }}
@@ -252,7 +252,7 @@ export function ThemeSelector() {
                       marginBottom: "2px",
                     }}
                   >
-                    {theme.name.toUpperCase()}
+                  {theme.name.toUpperCase()}
                   </div>
                   <div
                     style={{
@@ -266,21 +266,21 @@ export function ThemeSelector() {
                   </div>
                 </div>
 
-                {colorTheme === theme.id && (
+                  {colorTheme === theme.id && (
                   <div
-                    style={{
-                      marginLeft: "auto",
+                      style={{
+                        marginLeft: "auto",
                       width: "6px",
                       height: "6px",
                       backgroundColor: "var(--terminal-text)",
                       boxShadow: "var(--text-glow)",
-                    }}
+                      }}
                   ></div>
-                )}
-              </button>
-            ))}
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
       )}
     </div>
   );

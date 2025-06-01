@@ -3,7 +3,6 @@
 import React, {
   useState,
   useRef,
-  KeyboardEvent,
   CSSProperties,
   useEffect,
   useCallback,
@@ -16,14 +15,14 @@ import { useFocus } from "@/hooks/useFocus";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
   disabled?: boolean;
   placeholder?: string;
 }
 
 function ChatInputComponent({
   onSendMessage,
-  isLoading,
+  isLoading = false,
   disabled = false,
   placeholder = "Type your message...",
 }: ChatInputProps) {
@@ -34,6 +33,40 @@ function ChatInputComponent({
   const { playClickSound, playTypingSound } = useSound();
   const isDark = mode === "dark";
   const isInputEmpty = input.trim() === "";
+
+  // Add keyboard event listeners for better typing sound effects
+  useEffect(() => {
+    // Create event listener for keydown events - using DOM KeyboardEvent type, not React's
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      // Only play sound for character keys and not for special keys
+      const isCharKey =
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey;
+
+      // Only play for textarea when it's focused
+      if (
+        isCharKey &&
+        document.activeElement === textareaRef.current &&
+        !typingTimeoutRef.current
+      ) {
+        playTypingSound();
+
+        typingTimeoutRef.current = setTimeout(() => {
+          typingTimeoutRef.current = null;
+        }, 50);
+      }
+    };
+
+    // Add global keyboard listener
+    window.addEventListener("keydown", handleKeyDown);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [playTypingSound]);
 
   // Use the enhanced useFocus hook with our existing ref
   const focusRef = useFocus<HTMLTextAreaElement>({
@@ -85,32 +118,24 @@ function ChatInputComponent({
     [input, isLoading, disabled, onSendMessage, playClickSound]
   );
 
-  // Handle key press events
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit(e);
-        return;
-      }
-    },
-    [handleSubmit]
-  );
-
   // Handle input changes
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
       setInput(value);
 
-      // Only play typing sound if not already playing and input is getting longer
-      if (value.length > input.length && !typingTimeoutRef.current) {
-        playTypingSound();
+      // Play typing sound for each character typed
+      // Only if the input is getting longer (not when deleting text)
+      if (value.length > input.length) {
+        // Only throttle slightly to make typing feel more responsive
+        if (!typingTimeoutRef.current) {
+          playTypingSound();
 
-        // Set a timer to allow the sound to play again after a delay
-        typingTimeoutRef.current = setTimeout(() => {
-          typingTimeoutRef.current = null;
-        }, 500);
+          // Set a very short throttle time for a more responsive feel
+          typingTimeoutRef.current = setTimeout(() => {
+            typingTimeoutRef.current = null;
+          }, 50); // Much shorter delay for faster typing sound response
+        }
       }
     },
     [input, playTypingSound]
@@ -156,18 +181,6 @@ function ChatInputComponent({
     zIndex: 2,
   };
 
-  const sendButtonStyle: CSSProperties = {
-    position: "absolute",
-    right: "8px",
-    bottom: "8px",
-    fontSize: "0.75rem",
-    padding: "4px 8px",
-    minWidth: "60px",
-    backgroundColor: isDark ? "var(--retro-blue)" : "var(--retro-teal)",
-    opacity: isInputEmpty || isLoading || disabled ? 0.5 : 1,
-    cursor: isInputEmpty || isLoading || disabled ? "not-allowed" : "pointer",
-  };
-
   return (
     <div className="chat-input-container" style={containerStyle}>
       <form onSubmit={handleSubmit} style={{ position: "relative" }}>
@@ -191,7 +204,7 @@ function ChatInputComponent({
               textShadow: "var(--text-glow)",
             }}
           >
-            &gt;
+            {">" + (isInputEmpty ? "" : " " + input.length)}
           </div>
 
           {/* Text area wrapper */}
@@ -202,9 +215,7 @@ function ChatInputComponent({
               border: "3px solid #000",
               borderRadius: "2px",
               boxShadow: "3px 3px 0 #000, inset 0 0 6px rgba(0, 0, 0, 0.4)",
-              backgroundColor: isDark
-                ? "rgba(15, 17, 27, 0.8)"
-                : "rgba(15, 25, 50, 0.8)",
+              backgroundColor: "rgba(15, 25, 50, 0.8)",
               padding: "0.2rem",
               display: "flex",
             }}
@@ -230,7 +241,14 @@ function ChatInputComponent({
               }}
               value={input}
               onChange={handleChange}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!isInputEmpty && !isLoading && !disabled) {
+                    handleSubmit(e);
+                  }
+                }
+              }}
               placeholder={placeholder}
               minRows={1}
               maxRows={5}
@@ -238,15 +256,12 @@ function ChatInputComponent({
               style={textareaStyle}
             />
 
-            {/* Send button */}
+            {/* Hidden submit button for form submission - visually hidden but keeps form functionality */}
             <button
-              className="retro-btn"
               type="submit"
               disabled={isInputEmpty || isLoading || disabled}
-              style={sendButtonStyle}
-            >
-              {isLoading ? "..." : "SEND"}
-            </button>
+              style={{ display: "none" }}
+            />
           </div>
         </div>
 
@@ -254,7 +269,7 @@ function ChatInputComponent({
         <div
           style={{
             position: "absolute",
-            right: "105px",
+            right: "20px", // Adjusted position since there's no Send button
             bottom: "-1.5rem",
             fontSize: "0.75rem",
             color: isDark
@@ -272,6 +287,16 @@ function ChatInputComponent({
           {input.length}/4000
         </div>
       </form>
+
+      <style jsx>{`
+        .action-icon:hover {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+        .action-icon {
+          transition: all 0.2s ease;
+        }
+      `}</style>
     </div>
   );
 }

@@ -111,7 +111,15 @@ const Database = {
     if (isSupabaseConfigured()) {
       try {
         // Delete existing messages for this session
-        await supabase.from(MESSAGES_TABLE).delete().eq("session_id", sid);
+        const { error: deleteError } = await supabase
+          .from(MESSAGES_TABLE)
+          .delete()
+          .eq("session_id", sid);
+
+        if (deleteError) {
+          console.warn("Failed to delete existing messages:", deleteError);
+          // Continue anyway to attempt the insert
+        }
 
         if (messages.length === 0) return;
 
@@ -121,7 +129,10 @@ const Database = {
           .from(MESSAGES_TABLE)
           .insert(formattedMessages);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw new Error(`Failed to save messages: ${error.message}`);
+        }
       } catch (error) {
         console.error("Failed to save messages to Supabase:", error);
         // Fall back to localStorage on error
@@ -260,6 +271,7 @@ const Database = {
         const formattedContext = {
           session_id: sid,
           topic: context.topic || null,
+          name: context.name || null,
           start_time: context.startTime.toISOString(),
           last_update_time: context.lastUpdateTime.toISOString(),
           message_count: context.messageCount,
@@ -318,6 +330,7 @@ const Database = {
 
         return {
           topic: data.topic || undefined,
+          name: data.name || undefined,
           startTime: new Date(data.start_time),
           lastUpdateTime: new Date(data.last_update_time),
           messageCount: data.message_count,
@@ -376,6 +389,7 @@ const Database = {
   saveConversation: async (conversation: StoredConversation): Promise<void> => {
     try {
       if (isSupabaseConfigured()) {
+        // First save the conversation metadata
         const { error } = await supabase.from(CONVERSATION_TABLE).upsert({
           id: conversation.id,
           user_id: conversation.userId,
@@ -385,16 +399,43 @@ const Database = {
           summary: conversation.summary || null,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase upsert error:", error);
+          throw new Error(`Failed to save conversation: ${error.message}`);
+        }
 
-        // Also save the messages separately
+        // Then save the messages separately
         if (conversation.messages.length > 0) {
+          // First delete any existing messages for this conversation
+          const { error: deleteError } = await supabase
+            .from(MESSAGES_TABLE)
+            .delete()
+            .eq("session_id", conversation.id);
+
+          if (deleteError) {
+            console.warn(
+              "Failed to delete existing conversation messages:",
+              deleteError
+            );
+            // Continue anyway to attempt the insert
+          }
+
+          // Format and insert new messages
           const formattedMessages = formatMessagesForStorage(
             conversation.messages,
             conversation.id
           );
 
-          await supabase.from(MESSAGES_TABLE).insert(formattedMessages);
+          const { error: insertError } = await supabase
+            .from(MESSAGES_TABLE)
+            .insert(formattedMessages);
+
+          if (insertError) {
+            console.error("Failed to save conversation messages:", insertError);
+            throw new Error(
+              `Failed to save conversation messages: ${insertError.message}`
+            );
+          }
         }
       } else if (isBrowser()) {
         // Store in localStorage
@@ -450,6 +491,11 @@ const Database = {
       }
     } catch (error) {
       console.error("Failed to save conversation:", error);
+      // Don't throw the error further to prevent UI disruption
+      // But log it with the detailed message for debugging
+      if (error instanceof Error) {
+        console.error("Error details:", error.message);
+      }
     }
   },
 

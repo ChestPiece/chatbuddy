@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useSound } from "@/context/SoundContext";
 import { APP_INFO } from "@/utils/constants";
@@ -11,8 +11,10 @@ interface AppHeaderProps {
 
 export function AppHeader({ title = "CHAT BUDDY" }: AppHeaderProps) {
   const { mode, toggleMode } = useTheme();
-  const { isSoundEnabled, toggleSound, playClickSound } = useSound();
+  const { isSoundEnabled, toggleSound, playClickSound, volume, adjustVolume } =
+    useSound();
   const isDark = mode === "dark";
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +33,11 @@ export function AppHeader({ title = "CHAT BUDDY" }: AppHeaderProps) {
   const handleThemeToggle = () => {
     playClickSound();
     toggleMode();
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    adjustVolume(newVolume);
   };
 
   return (
@@ -217,9 +224,67 @@ export function AppHeader({ title = "CHAT BUDDY" }: AppHeaderProps) {
           zIndex: 5,
         }}
       >
+        {/* Volume slider */}
+        {isSoundEnabled && showVolumeSlider && (
+          <div
+            className="volume-slider"
+            style={{
+              position: "absolute",
+              right: "100%",
+              top: "50%",
+              transform: "translateY(-50%)",
+              backgroundColor: isDark
+                ? "var(--retro-dark-blue)"
+                : "var(--retro-blue)",
+              padding: "4px 8px",
+              border: "2px solid #000",
+              boxShadow: "2px 2px 0 #000",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              width: "120px",
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                width: "16px",
+                height: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "10px",
+              }}
+            >
+              {Math.round(volume * 100)}
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={handleVolumeChange}
+              className="retro-slider"
+              style={{
+                flex: 1,
+                height: "8px",
+                appearance: "none",
+                backgroundColor: "rgba(0,0,0,0.3)",
+                borderRadius: "0",
+                border: "1px solid #000",
+                outline: "none",
+              }}
+            />
+          </div>
+        )}
+
         {/* Sound Toggle Button */}
         <button
           onClick={handleSoundToggle}
+          onMouseOver={() => isSoundEnabled && setShowVolumeSlider(true)}
+          onMouseOut={() => setTimeout(() => setShowVolumeSlider(false), 2000)}
           className="retro-btn"
           style={{
             width: "36px",
@@ -238,7 +303,11 @@ export function AppHeader({ title = "CHAT BUDDY" }: AppHeaderProps) {
             borderRadius: "0",
             boxShadow: "3px 3px 0 #000, inset 0 0 6px rgba(255, 255, 255, 0.1)",
           }}
-          title={isSoundEnabled ? "Sound On" : "Sound Off"}
+          title={
+            isSoundEnabled
+              ? `Sound On (${Math.round(volume * 100)}%)`
+              : "Sound Off"
+          }
         >
           {isSoundEnabled ? (
             <div
@@ -540,6 +609,23 @@ export function AppHeader({ title = "CHAT BUDDY" }: AppHeaderProps) {
         button:active {
           transform: translate(3px, 3px);
           box-shadow: none !important;
+        }
+
+        /* Custom styling for the volume slider */
+        input[type="range"].retro-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 12px;
+          height: 16px;
+          background: ${isDark ? "var(--retro-cyan)" : "var(--retro-teal)"};
+          border: 1px solid #000;
+          cursor: pointer;
+        }
+        input[type="range"].retro-slider::-moz-range-thumb {
+          width: 12px;
+          height: 16px;
+          background: ${isDark ? "var(--retro-cyan)" : "var(--retro-teal)"};
+          border: 1px solid #000;
+          cursor: pointer;
         }
       `}</style>
     </header>

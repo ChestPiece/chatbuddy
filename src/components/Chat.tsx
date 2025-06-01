@@ -16,6 +16,7 @@ import SessionManager from "@/utils/sessionManager";
 import Database from "@/utils/database";
 import { ConversationSidebar } from "./ConversationSidebar";
 import { ConversationHeader } from "./ConversationHeader";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 
 export function Chat() {
   const [chatState, setChatState] = useState<ChatState>({
@@ -23,6 +24,7 @@ export function Chat() {
     status: ChatSessionState.Idle,
     conversationId: null,
     title: "New Chat",
+    error: null,
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -107,6 +109,53 @@ export function Chat() {
     }
   }, [chatState.messages, chatState.title, generateTitle]);
 
+  // Auto-generate conversation name after receiving the first assistant response
+  useEffect(() => {
+    const generateConversationName = async () => {
+      const messages = chatState.messages;
+      // Only proceed if we have at least one user message and one assistant response
+      if (
+        messages.length >= 2 &&
+        messages.some((m) => m.role === "user") &&
+        messages.some(
+          (m) => m.role === "assistant" && m.content.trim() !== ""
+        ) &&
+        (!chatState.title ||
+          chatState.title === "New Chat" ||
+          chatState.title === "Conversation")
+      ) {
+        try {
+          // Call our API to generate a name
+          const response = await fetch("/api/conversation-name", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ messages }),
+          });
+
+          if (response.ok) {
+            const { name } = await response.json();
+            if (name) {
+              setChatState((prev) => ({ ...prev, title: name }));
+
+              // Also update in the conversation context
+              const context = await Database.loadContext();
+              if (context) {
+                context.name = name;
+                await Database.saveContext(context);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error generating conversation name:", error);
+        }
+      }
+    };
+
+    generateConversationName();
+  }, [chatState.messages, chatState.title]);
+
   /**
    * Stream the chat response and call the contentCallback with each content chunk
    */
@@ -124,6 +173,8 @@ export function Chat() {
           },
           body: JSON.stringify({ messages }),
           signal,
+          // Add cache: 'no-store' to avoid browser caching
+          cache: "no-store",
         });
 
         if (!response.ok) {
@@ -152,7 +203,8 @@ export function Chat() {
         let buffer = "";
         let contentBuffer = ""; // Accumulate content for batch updates
         let lastUpdateTime = Date.now();
-        const UPDATE_INTERVAL = 30; // Update UI every 30ms max
+        const UPDATE_INTERVAL = 20; // Reduced from 30ms to 20ms for faster UI updates
+        const MIN_CONTENT_LENGTH = 15; // Minimum content length to trigger an update
 
         const processBuffer = () => {
           let boundary = buffer.indexOf("\n\n");
@@ -189,6 +241,7 @@ export function Chat() {
           }
         };
 
+        // Enhanced streaming with more frequent updates and parallel processing
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
@@ -207,7 +260,7 @@ export function Chat() {
           if (
             contentBuffer &&
             (now - lastUpdateTime > UPDATE_INTERVAL ||
-              contentBuffer.length > 10 ||
+              contentBuffer.length > MIN_CONTENT_LENGTH ||
               isComplete)
           ) {
             flushContentBuffer();
@@ -269,10 +322,18 @@ export function Chat() {
           updatedAt: new Date(),
         };
 
-        // Save to database
-        await Database.saveConversation(conversation);
+        // Save to database with proper error handling
+        await Database.saveConversation(conversation)
+          .then(() => {
+            // Successfully saved - no action needed
+          })
+          .catch((err) => {
+            console.error("Error saving conversation in Chat component:", err);
+            // We'll continue execution and not throw further to prevent disrupting the UI
+          });
       } catch (error) {
-        console.error("Error saving conversation:", error);
+        console.error("Error in saveCurrentConversation:", error);
+        // Don't throw to prevent UI disruption, but log for debugging
       }
     },
     [chatState.conversationId, chatState.title, generateTitle]
@@ -327,9 +388,14 @@ export function Chat() {
           userMessage,
           assistantMessage,
         ];
-        Database.saveMessages(updatedMessages).catch((err) =>
-          console.error("Background save failed:", err)
-        );
+        Database.saveMessages(updatedMessages)
+          .then(() => {
+            // Success - no action needed
+          })
+          .catch((err) => {
+            console.error("Background save failed:", err);
+            // Don't disrupt UI flow on error
+          });
 
         // Local reference to accumulate content during streaming
         let responseContent = "";
@@ -377,17 +443,30 @@ export function Chat() {
         ];
 
         // Save in background (don't block UI)
-        saveCurrentConversation(finalMessages).catch((err) =>
-          console.error("Error saving conversation:", err)
-        );
+        saveCurrentConversation(finalMessages)
+          .then(() => {
+            // Successfully saved conversation
+          })
+          .catch((err) => {
+            console.error("Error saving conversation:", err);
+            // Don't disrupt UI flow on error
+          });
 
         // Save messages in background
-        Database.saveMessages(finalMessages).catch((err) =>
-          console.error("Error saving messages:", err)
-        );
+        Database.saveMessages(finalMessages)
+          .then(() => {
+            // Successfully saved messages
+          })
+          .catch((err) => {
+            console.error("Error saving messages:", err);
+            // Don't disrupt UI flow on error
+          });
       } catch (error: unknown) {
         // Only handle errors if not aborted
-        if (error instanceof Error && error.name !== "AbortError") {
+        if (error instanceof Error && error.name === "AbortError") {
+          console.log("Request was cancelled by user");
+          // Already handled in handleCancelResponse
+        } else if (error instanceof Error) {
           console.error("Error fetching chat response:", error);
           setChatState((prev) => ({
             ...prev,
@@ -400,14 +479,14 @@ export function Chat() {
       }
     },
     [
-      chatState.messages,
       chatState.status,
+      chatState.messages,
       playClickSound,
       playErrorSound,
       playMessageSound,
       playTypingSound,
-      saveCurrentConversation,
       streamChatResponse,
+      saveCurrentConversation,
     ]
   );
 
@@ -501,6 +580,157 @@ export function Chat() {
     [saveCurrentConversation, chatState.messages]
   );
 
+  const handleRetryMessage = useCallback(async () => {
+    if (chatState.status === ChatSessionState.Loading) return;
+
+    // Get the most recent user message
+    const messages = [...chatState.messages];
+    let lastUserMessageIndex = messages.length - 1;
+
+    while (
+      lastUserMessageIndex >= 0 &&
+      messages[lastUserMessageIndex].role !== "user"
+    ) {
+      lastUserMessageIndex--;
+    }
+
+    if (lastUserMessageIndex < 0) return; // No user message found
+
+    // Get all messages up to and including the last user message
+    const messagesToSend = messages.slice(0, lastUserMessageIndex + 1);
+
+    // Remove error-state messages
+    const cleanMessages = chatState.messages.filter((m) => !m.isError);
+
+    // Create a placeholder assistant message
+    const assistantMessageId = uuidv4();
+    const assistantMessage: MessageType = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      createdAt: new Date(),
+    };
+
+    // Update state
+    setChatState((prev) => ({
+      ...prev,
+      messages: [...cleanMessages, assistantMessage],
+      status: ChatSessionState.Loading,
+      error: null,
+    }));
+
+    try {
+      // Cancel any previous ongoing requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create a new AbortController for this request
+      abortControllerRef.current = new AbortController();
+
+      // Local reference to accumulate content during streaming
+      let responseContent = "";
+
+      // Stream the response and update the message incrementally
+      await streamChatResponse(
+        messagesToSend,
+        abortControllerRef.current.signal,
+        (content) => {
+          // Update the responseContent variable
+          responseContent += content;
+
+          // Update the assistant message with new content
+          setChatState((prev) => {
+            const updatedMessages = prev.messages.map((msg) =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: responseContent }
+                : msg
+            );
+            return {
+              ...prev,
+              messages: updatedMessages,
+            };
+          });
+        }
+      );
+
+      // Update status to idle
+      setChatState((prev) => ({
+        ...prev,
+        status: ChatSessionState.Idle,
+      }));
+
+      // Play sound when message is received
+      playMessageSound();
+
+      // Final messages with complete content
+      const finalMessages = cleanMessages.map((msg) =>
+        msg.id === assistantMessageId
+          ? { ...msg, content: responseContent, isError: false }
+          : msg
+      );
+
+      // Save in background
+      Database.saveMessages(finalMessages)
+        .then(() => {
+          // Successfully saved messages
+        })
+        .catch((err) => {
+          console.error("Error saving messages in retry:", err);
+          // Continue execution to not disrupt UI
+        });
+    } catch (error: unknown) {
+      // Only handle errors if not aborted
+      if (error instanceof Error && error.name !== "AbortError") {
+        console.error("Error fetching chat response:", error);
+        setChatState((prev) => ({
+          ...prev,
+          status: ChatSessionState.Error,
+          error: error instanceof Error ? error.message : "Unknown error",
+        }));
+        playErrorSound();
+      }
+    } finally {
+      abortControllerRef.current = null;
+    }
+  }, [
+    chatState.messages,
+    chatState.status,
+    playErrorSound,
+    playMessageSound,
+    streamChatResponse,
+  ]);
+
+  // Add this useEffect to handle the retry event
+  useEffect(() => {
+    const handleRetry = () => {
+      if (chatState.status !== ChatSessionState.Loading) {
+        handleRetryMessage();
+      }
+    };
+
+    // Add event listener
+    window.addEventListener("retry-message", handleRetry);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("retry-message", handleRetry);
+    };
+  }, [handleRetryMessage, chatState.status]);
+
+  // Function to focus the chat input
+  const focusChatInput = useCallback(() => {
+    if (chatState.status === ChatSessionState.Loading) return;
+
+    // Find input inside ChatInput component
+    const textareaElement = document.querySelector(
+      ".chat-input-container textarea"
+    );
+    if (textareaElement instanceof HTMLTextAreaElement) {
+      textareaElement.focus();
+    }
+  }, [chatState.status]);
+
   return (
     <div
       className="chat-container pixel-box crt-flicker power-on"
@@ -559,6 +789,14 @@ export function Chat() {
           zIndex: 2,
         }}
       ></div>
+
+      {/* Add KeyboardShortcuts component */}
+      <KeyboardShortcuts
+        onNewChat={handleNewConversation}
+        onClearChat={handleClearChat}
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onFocusInput={focusChatInput}
+      />
 
       {/* Conversation sidebar */}
       <ConversationSidebar
@@ -654,7 +892,7 @@ export function Chat() {
         )}
 
         {chatState.messages.map((message) => (
-          <Message key={message.id} message={message} />
+          <Message key={message.id} message={message} isLastInGroup={true} />
         ))}
 
         {chatState.status === ChatSessionState.Loading && (
@@ -663,8 +901,10 @@ export function Chat() {
             style={{
               display: "flex",
               padding: "0.5rem",
-              justifyContent: "flex-start",
+              justifyContent: "space-between",
               marginLeft: "1rem",
+              marginRight: "1rem",
+              alignItems: "center",
             }}
           >
             <div
@@ -682,6 +922,25 @@ export function Chat() {
           </div>
         )}
 
+        {chatState.status === ChatSessionState.Error && (
+          <div className="flex flex-col items-center justify-center p-4 text-red-500">
+            <div className="bg-red-100 dark:bg-red-900/30 border border-red-500 text-red-700 dark:text-red-300 px-4 py-3 rounded relative mb-4">
+              <p>Sorry, there was an error processing your request.</p>
+              {chatState.error && (
+                <p className="text-sm mt-1">{chatState.error}</p>
+              )}
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleRetryMessage}
+                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -689,7 +948,7 @@ export function Chat() {
       <ChatInput
         onSendMessage={handleSendMessage}
         isLoading={chatState.status === ChatSessionState.Loading}
-        disabled={false}
+        placeholder="Type your message..."
       />
 
       <style jsx global>{`
